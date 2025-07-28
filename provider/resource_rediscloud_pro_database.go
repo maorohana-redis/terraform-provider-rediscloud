@@ -111,7 +111,6 @@ func resourceRedisCloudProDatabase() *schema.Resource {
 				Computed:    true,
 				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
 					// Suppress diff if the resource already exists (not during creation)
-					// This allows external version updates to be detected without forcing terraform apply
 					return d.Id() != ""
 				},
 			},
