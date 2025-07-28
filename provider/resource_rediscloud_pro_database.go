@@ -104,6 +104,17 @@ func resourceRedisCloudProDatabase() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
+			"redis_version": {
+				Description: "Redis version for the database. If omitted, the Redis version will be the default",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
+					// Suppress diff if the resource already exists (not during creation)
+					// This allows external version updates to be detected without forcing terraform apply
+					return d.Id() != ""
+				},
+			},
 			"external_endpoint_for_oss_cluster_api": {
 				Description: "Should use the external endpoint for open-source (OSS) Cluster API",
 				Type:        schema.TypeBool,
@@ -362,6 +373,7 @@ func resourceRedisCloudProDatabaseCreate(ctx context.Context, d *schema.Resource
 	throughputMeasurementValue := d.Get("throughput_measurement_value").(int)
 	averageItemSizeInBytes := d.Get("average_item_size_in_bytes").(int)
 	queryPerformanceFactor := d.Get("query_performance_factor").(string)
+	redisVersion := d.Get("redis_version").(string)
 
 	createModules := make([]*databases.Module, 0)
 	modules := d.Get("modules").(*schema.Set)
@@ -437,6 +449,10 @@ func resourceRedisCloudProDatabaseCreate(ctx context.Context, d *schema.Resource
 		createDatabase.RespVersion = redis.String(respVersion)
 	}
 
+	if redisVersion != "" {
+		createDatabase.RedisVersion = redis.String(redisVersion)
+	}
+
 	// Confirm sub is ready to accept a db request
 	if err := waitForSubscriptionToBeActive(ctx, subId, api); err != nil {
 		return diag.FromErr(err)
@@ -507,6 +523,10 @@ func resourceRedisCloudProDatabaseRead(ctx context.Context, d *schema.ResourceDa
 	}
 
 	if err := d.Set("resp_version", redis.StringValue(db.RespVersion)); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if err := d.Set("redis_version", redis.StringValue(db.RedisVersion)); err != nil {
 		return diag.FromErr(err)
 	}
 
